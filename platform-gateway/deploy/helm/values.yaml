@@ -1,0 +1,117 @@
+# Platform Gateway — Helm values for AKS production deployment
+# Sits alongside the opensandbox-server Helm release in the same cluster.
+
+replicaCount: 2
+
+image:
+  repository: your-acr.azurecr.io/platform-gateway
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 9090
+
+ingress:
+  enabled: true
+  className: nginx
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    # WebSocket support for sandbox proxy
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"
+    nginx.ingress.kubernetes.io/upstream-hash-by: "$request_uri"
+  hosts:
+    - host: api.yourdomain.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: gateway-tls
+      hosts:
+        - api.yourdomain.com
+
+# Gateway config — injected as env vars
+config:
+  # Points to the opensandbox-server K8s Service (ClusterIP)
+  # Server runs in opensandbox-system; its Service listens on port 80
+  upstreamUrl: "http://opensandbox-server.opensandbox-system.svc.cluster.local:80"
+  port: "9090"
+  logLevel: "info"
+  # Maps to GATEWAY_FREE_CREDITS_CENTS env var (config.py field: free_credits_cents)
+  freeCredits: "5000"
+  maxCpuPerSandbox: "16"
+  maxMemoryGibPerSandbox: "32"
+  maxConcurrentSandboxes: "50"
+  gracePeriodSeconds: "900"
+  meteringIntervalSeconds: "30"
+  rateLimitCreatesPerMinute: "10"
+
+# Secrets — reference K8s Secrets, NOT plain text
+secrets:
+  # The OpenSandbox server's master API key
+  masterApiKeySecret:
+    name: gateway-secrets
+    key: master-api-key
+  # Postgres connection string
+  databaseUrlSecret:
+    name: gateway-secrets
+    key: database-url
+
+# Postgres — use Azure Database for PostgreSQL Flexible Server in production
+# This is NOT deployed by this chart; create it separately.
+# Connection string format: postgresql://user:pass@host:5432/gateway?sslmode=require
+externalDatabase:
+  # Set to true if using an external Postgres (recommended for production)
+  enabled: true
+
+# Resources
+resources:
+  requests:
+    cpu: 250m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+# Health checks
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 9090
+  initialDelaySeconds: 10
+  periodSeconds: 15
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 9090
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  failureThreshold: 3
+
+# Pod disruption budget — keep at least 1 replica during updates
+podDisruptionBudget:
+  minAvailable: 1
+
+# Node selector — run on system pool, NOT on sandbox worker nodes
+nodeSelector:
+  agentpool: system
+
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - platform-gateway
+          topologyKey: kubernetes.io/hostname

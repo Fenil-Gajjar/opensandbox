@@ -1,0 +1,39 @@
+# Local development stack — gateway + postgres
+# Usage: docker compose up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: gateway
+      POSTGRES_PASSWORD: gateway
+      POSTGRES_DB: gateway
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gateway"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  gateway:
+    build: .
+    ports:
+      - "9090:9090"
+    environment:
+      GATEWAY_DATABASE_URL: postgresql://gateway:gateway@postgres:5432/gateway
+      GATEWAY_UPSTREAM_URL: http://host.docker.internal:8080   # OpenSandbox server on host
+      GATEWAY_MASTER_API_KEY: ""                                # Set to your OpenSandbox API key
+      GATEWAY_LOG_LEVEL: debug
+      GATEWAY_FREE_CREDITS: "5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  pgdata:

@@ -1,0 +1,42 @@
+slug: code-interpreter
+name: Code Interpreter
+description: >-
+  Multi-language code execution environment with Jupyter kernel support.
+  Supports Python (3.10-3.14), Java 21, Node.js (18-22), Go (1.23-1.25),
+  and Bash. Provides persistent execution contexts — variables survive
+  across code runs, like a Jupyter notebook.
+category: development
+tags:
+  - code-interpreter
+  - jupyter
+  - python
+  - java
+  - node
+  - go
+  - multi-language
+
+ports:
+  - port: 44771
+    name: Jupyter
+    description: Jupyter Notebook server (internal, used by execd)
+
+create_params:
+  image:
+    uri: opensandbox/code-interpreter:v1.0.2
+  entrypoint:
+    - /opt/opensandbox/code-interpreter.sh
+  resourceLimits:
+    cpu: "2"
+    memory: "4Gi"
+  timeout: 3600
+  env:
+    PYTHON_VERSION: "3.14"
+    NODE_VERSION: "22"
+    GO_VERSION: "1.25"
+    JAVA_VERSION: "21"
+
+user_configurable:
+  - timeout
+  - resourceLimits
+  - env
+  - networkPolicy

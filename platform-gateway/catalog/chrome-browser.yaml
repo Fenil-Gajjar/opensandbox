@@ -1,0 +1,40 @@
+slug: chrome-browser
+name: Chrome Browser
+description: >-
+  Chromium browser with VNC desktop access and Chrome DevTools remote debugging.
+  Access the browser via noVNC in your web browser, or connect DevTools for
+  headless automation and scraping.
+category: browser
+tags:
+  - browser
+  - chrome
+  - vnc
+  - devtools
+  - scraping
+  - web-testing
+
+ports:
+  - port: 5901
+    name: VNC
+    description: Raw VNC connection (requires a VNC client app, not browser-accessible)
+  - port: 9222
+    name: Chrome DevTools
+    description: Chrome DevTools remote debugging (localhost-bound — access via command_run inside sandbox, not directly from browser)
+
+create_params:
+  image:
+    uri: opensandbox/chrome:latest
+  entrypoint:
+    - /entrypoint
+  resourceLimits:
+    cpu: "2"
+    memory: "4Gi"
+  timeout: 3600
+  networkPolicy:
+    defaultAction: allow
+
+user_configurable:
+  - timeout
+  - resourceLimits
+  - env
+  - networkPolicy

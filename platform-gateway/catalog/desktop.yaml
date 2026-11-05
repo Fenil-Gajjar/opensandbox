@@ -1,0 +1,49 @@
+slug: desktop
+name: Linux Desktop
+description: >-
+  Full XFCE4 Linux desktop environment accessible via browser (noVNC) or any
+  VNC client. Includes file manager, terminal, and common desktop tools.
+  Ideal for GUI applications, browser testing, or visual development.
+category: desktop
+tags:
+  - desktop
+  - vnc
+  - novnc
+  - xfce
+  - gui
+  - linux
+
+ports:
+  - port: 6080
+    name: noVNC Web
+    description: Browser-based desktop access (open in any browser)
+  - port: 5900
+    name: VNC
+    description: Raw VNC connection (use a VNC client)
+
+create_params:
+  image:
+    uri: opensandbox/desktop:latest
+  entrypoint:
+    - bash
+    - -c
+    - >-
+      Xvfb :1 -screen 0 1280x1024x24 &
+      sleep 1 &&
+      x11vnc -display :1 -forever -nopw -rfbport 5900 &
+      sleep 1 &&
+      DISPLAY=:1 startxfce4 &
+      websockify --web /usr/share/novnc 6080 localhost:5900
+  resourceLimits:
+    cpu: "2"
+    memory: "2Gi"
+  timeout: 7200
+  env:
+    VNC_PASSWORD: opensandbox
+    PYTHON_VERSION: "3.12"
+
+user_configurable:
+  - timeout
+  - resourceLimits
+  - env
+  - networkPolicy

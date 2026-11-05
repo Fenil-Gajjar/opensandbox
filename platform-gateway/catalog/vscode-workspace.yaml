@@ -1,0 +1,38 @@
+slug: vscode-workspace
+name: VS Code Workspace
+description: >-
+  Full VS Code development environment powered by code-server. Access a
+  complete IDE in your browser with terminal, extensions, and file explorer.
+  Python pre-installed with configurable version.
+category: development
+tags:
+  - vscode
+  - ide
+  - development
+  - code-server
+  - python
+
+ports:
+  - port: 8443
+    name: VS Code Web
+    description: code-server IDE (open in browser)
+
+create_params:
+  image:
+    uri: opensandbox/vscode:latest
+  entrypoint:
+    - bash
+    - -c
+    - code-server --bind-addr 0.0.0.0:8443 --auth none
+  resourceLimits:
+    cpu: "2"
+    memory: "2Gi"
+  timeout: 7200
+  env:
+    PYTHON_VERSION: "3.12"
+
+user_configurable:
+  - timeout
+  - resourceLimits
+  - env
+  - networkPolicy

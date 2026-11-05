@@ -1,0 +1,33 @@
+slug: playwright
+name: Playwright Browser Automation
+description: >-
+  Headless browser automation environment with Playwright and Chromium
+  pre-installed. Run browser tests, scrape websites, take screenshots,
+  and automate web interactions programmatically. No GUI — all headless.
+category: automation
+tags:
+  - playwright
+  - browser
+  - automation
+  - scraping
+  - headless
+  - testing
+  - chromium
+
+ports: []
+
+create_params:
+  image:
+    uri: opensandbox/playwright:latest
+  resourceLimits:
+    cpu: "2"
+    memory: "2Gi"
+  timeout: 1800
+  env:
+    PYTHON_VERSION: "3.12"
+
+user_configurable:
+  - timeout
+  - resourceLimits
+  - env
+  - networkPolicy

@@ -1,0 +1,132 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app: platform-gateway
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: platform-gateway
+  template:
+    metadata:
+      labels:
+        app: platform-gateway
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: gateway
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: 9090
+              protocol: TCP
+          env:
+            - name: GATEWAY_UPSTREAM_URL
+              value: {{ .Values.config.upstreamUrl | quote }}
+            - name: GATEWAY_PORT
+              value: {{ .Values.config.port | quote }}
+            - name: GATEWAY_LOG_LEVEL
+              value: {{ .Values.config.logLevel | quote }}
+            - name: GATEWAY_FREE_CREDITS_CENTS
+              value: {{ .Values.config.freeCredits | quote }}
+            - name: GATEWAY_MAX_CPU_PER_SANDBOX
+              value: {{ .Values.config.maxCpuPerSandbox | quote }}
+            - name: GATEWAY_MAX_MEMORY_GIB_PER_SANDBOX
+              value: {{ .Values.config.maxMemoryGibPerSandbox | quote }}
+            - name: GATEWAY_MAX_CONCURRENT_SANDBOXES
+              value: {{ .Values.config.maxConcurrentSandboxes | quote }}
+            - name: GATEWAY_GRACE_PERIOD_SECONDS
+              value: {{ .Values.config.gracePeriodSeconds | quote }}
+            - name: GATEWAY_METERING_INTERVAL_SECONDS
+              value: {{ .Values.config.meteringIntervalSeconds | quote }}
+            - name: GATEWAY_RATE_LIMIT_CREATES_PER_MINUTE
+              value: {{ .Values.config.rateLimitCreatesPerMinute | quote }}
+            # Secrets from K8s Secret
+            - name: GATEWAY_MASTER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.masterApiKeySecret.name }}
+                  key: {{ .Values.secrets.masterApiKeySecret.key }}
+            - name: GATEWAY_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.databaseUrlSecret.name }}
+                  key: {{ .Values.secrets.databaseUrlSecret.key }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: 9090
+      protocol: TCP
+  selector:
+    app: platform-gateway
+---
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType }}
+            backend:
+              service:
+                name: {{ $.Release.Name }}
+                port:
+                  number: {{ $.Values.service.port }}
+          {{- end }}
+    {{- end }}
+{{- end }}
+---
+{{- if .Values.podDisruptionBudget }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      app: platform-gateway
+{{- end }}
